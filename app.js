@@ -1,12 +1,13 @@
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
-
-const port = process.env.PORT || 4001;
-const index = require('./routes');
 const cors = require('cors');
 
-const app = express().use(cors()).use(index);
+const routes = require('./routes');
+
+const port = process.env.PORT || 4001;
+
+const app = express().use(cors()).use(routes);
 
 const server = http.createServer(app);
 
@@ -21,8 +22,13 @@ const io = socketIo(server, {
 io.on('connection', (socket) => {
   console.log('New client connected');
 
-  socket.on('shuffle words', () => {
-    socket.emit('shuffle words', '');
+  // socket.on('fromClient.join.room', (room) => {
+  //   console.log('Joined Room: ', room);
+  //   socket.join(room);
+  // });
+
+  socket.on('fromClient.update.roster', (roster) => {
+    io.sockets.emit('fromApi.update.roster', roster);
   });
 
   socket.on('disconnect', () => {
