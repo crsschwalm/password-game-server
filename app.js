@@ -40,6 +40,11 @@ io.on('connection', (socket) => {
     setTimeout(emitNewWord, 1000);
   };
 
+  const emitWhosTurn = () => {
+    console.log('service.whosTurn :>> ', service.whosTurn);
+    io.sockets.emit('fromApi.whos.turn', service.whosTurn);
+  };
+
   socket.on('fromClient.create.room', (room) => {
     service.createRoom(room);
   });
@@ -67,12 +72,14 @@ io.on('connection', (socket) => {
 
   socket.on('fromClient.start.round', () => {
     startRound();
+
+    emitWhosTurn();
   });
 
   socket.on('fromClient.next.turn', () => {
-    const currTeamTurn = service.skipTurn();
+    service.nextTurn();
 
-    io.sockets.emit('fromApi.active.team', currTeamTurn);
+    emitWhosTurn();
   });
 
   socket.on('fromClient.start.game', () => {
@@ -82,6 +89,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('fromClient.shuffle.word', () => {
+    service.nextTurn();
+    emitWhosTurn();
     emitNewWord();
   });
 

@@ -55,6 +55,23 @@ class RoomService {
     return !!this.roomId;
   }
 
+  get whosTurn() {
+    const playerGivingHint = ROOMS[this.roomId].playerGivingHint;
+    const teamGivingHint = ROOMS[this.roomId].teamGivingHint;
+
+    return {
+      user: ROOMS[this.roomId].roster[teamGivingHint].players[playerGivingHint],
+      playerGivingHint,
+      teamGivingHint,
+    };
+  }
+
+  nextTurn = () => {
+    const currentTurn = ROOMS[this.roomId].teamGivingHint;
+
+    ROOMS[this.roomId].teamGivingHint = (currentTurn + 1) % 2;
+  };
+
   removeClient = () => {
     if (this.roomId) {
       ROOMS[this.roomId].playerCount--;
@@ -128,14 +145,6 @@ class RoomService {
     const currentRound = ROOMS[this.roomId].playerGivingHint;
 
     ROOMS[this.roomId].playerGivingHint = (currentRound + 1) % 2;
-  };
-
-  skipTurn = () => {
-    const currentTurn = ROOMS[this.roomId].teamGivingHint;
-
-    ROOMS[this.roomId].teamGivingHint = (currentTurn + 1) % 2;
-
-    return ROOMS[this.roomId].teamGivingHint;
   };
 
   incrementScore = (teamIndex) => {
