@@ -2,8 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
+
 const RoomService = require('./services/room');
-const wordService = require('./services/words');
 const routes = require('./routes');
 
 const port = process.env.PORT || 4001;
@@ -13,7 +13,7 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   cors: {
-    origin: 'http://localhost:3000',
+    origin: process.env.CLIENT_URL,
     methods: ['GET', 'POST'],
     credentials: true,
   },
@@ -41,7 +41,6 @@ io.on('connection', (socket) => {
   };
 
   const emitWhosTurn = () => {
-    console.log('service.whosTurn :>> ', service.whosTurn);
     io.sockets.emit('fromApi.whos.turn', service.whosTurn);
   };
 

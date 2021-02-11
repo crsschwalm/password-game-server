@@ -1,7 +1,7 @@
 const wordService = require('./words');
 
 const emptyRosterSpot = (index) => ({
-  name: index === 0 ? 'Hint First' : 'Guess First',
+  name: index === 0 ? 'Player 1' : 'Player 2',
   set: false,
 });
 
@@ -56,13 +56,16 @@ class RoomService {
   }
 
   get whosTurn() {
-    const playerGivingHint = ROOMS[this.roomId].playerGivingHint;
-    const teamGivingHint = ROOMS[this.roomId].teamGivingHint;
+    const teamIndex = ROOMS[this.roomId].playerGivingHint;
+    const playerIndex = ROOMS[this.roomId].teamGivingHint;
 
     return {
-      user: ROOMS[this.roomId].roster[teamGivingHint].players[playerGivingHint],
-      playerGivingHint,
-      teamGivingHint,
+      playerGivingHint:
+        ROOMS[this.roomId].roster[teamIndex].players[playerIndex],
+      playerGuessing:
+        ROOMS[this.roomId].roster[teamIndex].players[(playerIndex + 1) % 2],
+      teamIndex,
+      playerIndex,
     };
   }
 
