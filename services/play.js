@@ -1,4 +1,4 @@
-const { ROOMS, CLIENTS } = require('./roster');
+const { ROOMS, CLIENTS } = require('./room');
 
 const startGame = (socket, room) => {};
 

@@ -1,3 +1,5 @@
+const wordService = require('./words');
+
 const emptyRosterSpot = (index) => ({
   name: index === 0 ? 'Hint First' : 'Guess First',
   set: false,
@@ -16,9 +18,11 @@ const emptyRoom = (room) => ({
   playerCount: 0,
   roster: emptyRoster(),
   playerGivingHint: 0,
+  teamGivingHint: 0,
+  clients: {},
+  password: wordService.pickRandomAny(),
 });
 
-const CLIENTS = {};
 const ROOMS = {};
 
 class RoomService {
@@ -33,25 +37,30 @@ class RoomService {
     };
 
     this.roomId = null;
-
-    this.addClient();
   }
 
-  addClient = () => {
-    console.log('New client connected', this.socket.id);
-    CLIENTS[this.socket.id] = { socket: this.socket };
-  };
+  get password() {
+    return ROOMS[this.roomId].password;
+  }
+
+  shufflePassword() {
+    ROOMS[this.roomId].password = wordService.pickRandomAny();
+  }
+
+  get hintGiverRoom() {
+    return ROOMS[this.roomId].playerGivingHint + '.' + this.roomId;
+  }
+
+  get hasRoom() {
+    return !!this.roomId;
+  }
 
   removeClient = () => {
-    console.log('Client disconnected', this.socket.id);
-
-    delete CLIENTS[this.socket.id];
-
     if (this.roomId) {
       ROOMS[this.roomId].playerCount--;
 
       if (ROOMS[this.roomId].playerCount < 1) {
-        console.log('Last person left the room :>> ', this.roomId);
+        console.log('Deleting Room :>>', this.roomId);
         delete ROOMS[this.roomId];
       }
     }
@@ -63,29 +72,35 @@ class RoomService {
     }
 
     console.log('Creating Room :>> ', room);
-
     ROOMS[room] = emptyRoom(room);
 
     this.joinRoom(room);
   };
 
   joinRoom = (room) => {
-    if (!ROOMS[room]) {
+    this.roomId = room;
+
+    if (!ROOMS[this.roomId]) {
       this.createRoom(room);
     }
-    console.log('Joining Room :>> ', room);
 
-    ROOMS[room].playerCount++;
+    console.log('Joining room :>> ', this.roomId);
 
-    this.socket.join(room);
-    this.roomId = room;
+    ROOMS[this.roomId].clients[this.socket.id] = this.user;
+    ROOMS[this.roomId].playerCount++;
+
+    this.socket.join(this.roomId);
   };
 
   setUser = ({ username, teamIndex, playerIndex }) => {
     const playerRoom = playerIndex + '.' + this.roomId;
+
+    console.log('playerRoom :>> ', playerRoom);
     this.socket.join(playerRoom);
 
     this.user = { username, teamIndex, playerIndex, playerRoom };
+
+    ROOMS[this.roomId].clients[this.socket.id] = this.user;
   };
 
   setRosterSpot = ({ username, teamIndex, playerIndex }) => {
@@ -115,15 +130,17 @@ class RoomService {
     ROOMS[this.roomId].playerGivingHint = (currentRound + 1) % 2;
   };
 
+  skipTurn = () => {
+    const currentTurn = ROOMS[this.roomId].teamGivingHint;
+
+    ROOMS[this.roomId].teamGivingHint = (currentTurn + 1) % 2;
+
+    return ROOMS[this.roomId].teamGivingHint;
+  };
+
   incrementScore = (teamIndex) => {
     ROOMS[this.roomId].roster[teamIndex].score++;
   };
-
-  hintGiverRoom = () => {
-    return ROOMS[this.roomId].playerGivingHint + '.' + this.roomId;
-  };
-
-  hasRoom = () => !!this.roomId;
 }
 
 module.exports = RoomService;

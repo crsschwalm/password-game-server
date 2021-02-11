@@ -2,7 +2,7 @@ const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
 const cors = require('cors');
-const RoomService = require('./services/roster');
+const RoomService = require('./services/room');
 const wordService = require('./services/words');
 const routes = require('./routes');
 
@@ -21,10 +21,24 @@ const io = socketIo(server, {
 
 io.on('connection', (socket) => {
   const service = new RoomService(socket);
-  service.addClient();
 
   const emitNewRoster = () =>
     io.sockets.emit('fromApi.update.roster', service.getRoster());
+
+  const emitNewWord = () => {
+    service.shufflePassword();
+
+    io.sockets
+      .to(service.hintGiverRoom)
+      .emit('fromApi.send.word', service.password);
+  };
+
+  const startRound = () => {
+    console.log('Starting Round!');
+    io.sockets.emit('fromApi.start.round', service.roomId);
+
+    setTimeout(emitNewWord, 1000);
+  };
 
   socket.on('fromClient.create.room', (room) => {
     service.createRoom(room);
@@ -43,34 +57,36 @@ io.on('connection', (socket) => {
     emitNewRoster();
   });
 
-  socket.on('fromClient.increment.score', (payload) => {
+  socket.on('fromClient.team.scored', (payload) => {
     service.incrementScore(payload);
+    service.incrementRound();
+    io.sockets.emit('fromApi.end.round', true);
 
     emitNewRoster();
   });
 
-  socket.on('fromClient.increment.round', (payload) => {
-    service.incrementRound(payload);
+  socket.on('fromClient.start.round', () => {
+    startRound();
+  });
 
-    emitNewRoster();
+  socket.on('fromClient.next.turn', () => {
+    const currTeamTurn = service.skipTurn();
+
+    io.sockets.emit('fromApi.active.team', currTeamTurn);
   });
 
   socket.on('fromClient.start.game', () => {
     console.log('Started a game!');
     io.sockets.emit('fromApi.start.game', service.roomId);
+    startRound();
+  });
 
-    const hintGiverRoom = service.hintGiverRoom();
-    console.log('hintGiverRoom :>> ', hintGiverRoom);
-
-    setTimeout(() => {
-      io.sockets
-        .to(hintGiverRoom)
-        .emit('fromApi.send.word', wordService.pickRandomAny());
-    }, 1000);
+  socket.on('fromClient.shuffle.word', () => {
+    emitNewWord();
   });
 
   socket.on('fromClient.in.room', () => {
-    socket.emit('fromApi.in.room', service.hasRoom());
+    socket.emit('fromApi.in.room', service.hasRoom);
   });
 
   socket.on('disconnect', () => {
