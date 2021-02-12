@@ -1,7 +1,7 @@
 const wordService = require('./words');
 
 const emptyRosterSpot = (index) => ({
-  name: index === 0 ? 'Player 1' : 'Player 2',
+  username: index === 0 ? 'Player 1' : 'Player 2',
   set: false,
 });
 
@@ -13,8 +13,8 @@ const emptyTeam = (num) => ({
 
 const emptyRoster = () => [emptyTeam(1), emptyTeam(2)];
 
-const emptyRoom = (room) => ({
-  id: room,
+const emptyRoom = (roomId) => ({
+  id: roomId,
   playerCount: 0,
   roster: emptyRoster(),
   playerGivingHint: 0,
@@ -30,6 +30,7 @@ class RoomService {
     this.socket = socket;
 
     this.user = {
+      id: null,
       teamIndex: null,
       playerIndex: null,
       username: null,
@@ -76,7 +77,7 @@ class RoomService {
   };
 
   removeClient = () => {
-    if (this.roomId) {
+    if (!!this.roomId) {
       ROOMS[this.roomId].playerCount--;
 
       if (ROOMS[this.roomId].playerCount < 1) {
@@ -86,53 +87,61 @@ class RoomService {
     }
   };
 
-  createRoom = (room) => {
-    if (ROOMS[room]) {
-      return this.joinRoom(room);
+  createRoom = (roomId) => {
+    if (ROOMS[roomId]) {
+      return this.joinRoom({ roomId, userId: this.user.id });
     }
 
-    console.log('Creating Room :>> ', room);
-    ROOMS[room] = emptyRoom(room);
+    console.log('Creating Room :>> ', roomId);
+    ROOMS[roomId] = emptyRoom(roomId);
 
-    this.joinRoom(room);
+    this.joinRoom({ roomId, userId: this.user.id });
   };
 
-  joinRoom = (room) => {
-    this.roomId = room;
+  joinRoom = ({ roomId, userId }) => {
+    this.roomId = roomId;
+    if (userId) this.user.id = userId;
 
     if (!ROOMS[this.roomId]) {
-      this.createRoom(room);
+      return this.createRoom(this.roomId);
+    }
+
+    const foundUser = ROOMS[this.roomId]?.clients?.[userId];
+
+    if (foundUser) {
+      this.setUser(foundUser);
+    } else {
+      this.setUser(this.user);
     }
 
     console.log('Joining room :>> ', this.roomId);
-
-    ROOMS[this.roomId].clients[this.socket.id] = this.user;
     ROOMS[this.roomId].playerCount++;
 
     this.socket.join(this.roomId);
   };
 
-  setUser = ({ username, teamIndex, playerIndex }) => {
-    const playerRoom = playerIndex + '.' + this.roomId;
+  setUser = (payload) => {
+    const playerRoom = payload.playerIndex + '.' + this.roomId;
 
-    console.log('playerRoom :>> ', playerRoom);
     this.socket.join(playerRoom);
 
-    this.user = { username, teamIndex, playerIndex, playerRoom };
+    this.user = { ...this.user, ...payload, playerRoom };
 
-    ROOMS[this.roomId].clients[this.socket.id] = this.user;
+    ROOMS[this.roomId].clients[this.user.id] = this.user;
+
+    this.socket.emit('fromApi.update.user', this.user);
   };
 
   setRosterSpot = ({ username, teamIndex, playerIndex }) => {
     const updatedRoster = ROOMS[this.roomId].roster.map((team, tIndex) => ({
       ...team,
       players: team.players.map((player, pIndex) => {
-        if (player.name === username) {
+        if (player.username === username) {
           return emptyRosterSpot(pIndex);
         }
 
         if (teamIndex === tIndex && playerIndex === pIndex && !player.set) {
-          return { name: username, set: true };
+          return { username, set: true };
         }
 
         return player;
