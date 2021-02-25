@@ -33,7 +33,9 @@ const io = socketIo(server, {
 });
 
 const emitNewRoster = (service) =>
-  io.sockets.emit('fromApi.update.roster', service.getRoster());
+  io.sockets
+    .to(service.roomId)
+    .emit('fromApi.update.roster', service.getRoster());
 
 const emitNewWord = (service) => {
   service.shufflePassword();
@@ -44,15 +46,18 @@ const emitNewWord = (service) => {
 };
 
 const startRound = (service) => {
-  console.log('Starting Round!');
-  io.sockets.emit('fromApi.start.round', service.roomId);
+  io.sockets.to(service.roomId).emit('fromApi.start.round', service.roomId);
 
-  setTimeout(() => emitNewWord(service), 1000);
+  emitNewWord(service);
+
+  service.startTimer((time) =>
+    io.sockets.to(service.roomId).emit('fromApi.timer', time)
+  );
 };
 
 const emitWhosTurn = (service) => {
   console.log('Current Turn :>> ', service.whosTurn);
-  io.sockets.emit('fromApi.whos.turn', service.whosTurn);
+  io.sockets.to(service.roomId).emit('fromApi.whos.turn', service.whosTurn);
 };
 
 io.on('connection', (socket) => {
@@ -78,7 +83,7 @@ io.on('connection', (socket) => {
   socket.on('fromClient.team.scored', (payload) => {
     service.incrementScore(payload);
     service.incrementRound();
-    io.sockets.emit('fromApi.end.round', true);
+    io.sockets.to(service.roomId).emit('fromApi.end.round', true);
 
     emitNewRoster(service);
   });
@@ -89,6 +94,10 @@ io.on('connection', (socket) => {
     emitWhosTurn(service);
   });
 
+  socket.on('fromClient.end.round', () => {
+    io.sockets.to(service.roomId).emit('fromApi.start.round', service.roomId);
+  });
+
   socket.on('fromClient.next.turn', () => {
     service.nextTurn();
 
@@ -97,8 +106,8 @@ io.on('connection', (socket) => {
 
   socket.on('fromClient.start.game', () => {
     console.log('Started a game!');
-    io.sockets.emit('fromApi.start.game', service.roomId);
     startRound(service);
+    io.sockets.to(service.roomId).emit('fromApi.start.game', service.roomId);
   });
 
   socket.on('fromClient.shuffle.word', () => {

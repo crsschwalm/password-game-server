@@ -1,3 +1,4 @@
+const { Timer } = require('./timer');
 const wordService = require('./words');
 
 const emptyRosterSpot = (index) => ({
@@ -21,6 +22,7 @@ const emptyRoom = (roomId) => ({
   teamGivingHint: 0,
   clients: {},
   password: wordService.pickRandomAny(),
+  playTimer: new Timer(),
 });
 
 const ROOMS = {};
@@ -69,6 +71,16 @@ class RoomService {
       playerIndex,
     };
   }
+
+  startTimer = (emitToRoom) => {
+    ROOMS[this.roomId].playTimer.cancelCounter();
+
+    ROOMS[this.roomId].playTimer.startCounter(emitToRoom);
+  };
+
+  endRound = () => {
+    ROOMS[this.roomId].playTimer.cancelCounter();
+  };
 
   nextTurn = () => {
     console.log('Next turn');
