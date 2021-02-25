@@ -57,8 +57,8 @@ class RoomService {
   }
 
   get whosTurn() {
-    const teamIndex = ROOMS[this.roomId].playerGivingHint;
-    const playerIndex = ROOMS[this.roomId].teamGivingHint;
+    const teamIndex = ROOMS[this.roomId].teamGivingHint;
+    const playerIndex = ROOMS[this.roomId].playerGivingHint;
 
     return {
       playerGivingHint:
@@ -71,6 +71,7 @@ class RoomService {
   }
 
   nextTurn = () => {
+    console.log('Next turn');
     const currentTurn = ROOMS[this.roomId].teamGivingHint;
 
     ROOMS[this.roomId].teamGivingHint = (currentTurn + 1) % 2;

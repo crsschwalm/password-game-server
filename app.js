@@ -51,15 +51,14 @@ const startRound = (service) => {
 };
 
 const emitWhosTurn = (service) => {
+  console.log('Current Turn :>> ', service.whosTurn);
   io.sockets.emit('fromApi.whos.turn', service.whosTurn);
 };
 
 io.on('connection', (socket) => {
   const service = new RoomService(socket);
 
-  socket.on('fromClient.create.room', (room) => {
-    service.createRoom(room);
-  });
+  socket.on('fromClient.create.room', service.createRoom);
 
   socket.on('fromClient.join.room', (payload) => {
     service.joinRoom(payload);
@@ -67,9 +66,7 @@ io.on('connection', (socket) => {
     emitNewRoster(service);
   });
 
-  socket.on('fromClient.update.user', (payload) => {
-    service.setUser(payload);
-  });
+  socket.on('fromClient.update.user', service.setUser);
 
   socket.on('fromClient.update.roster', (payload) => {
     service.setUser(payload);
@@ -105,7 +102,6 @@ io.on('connection', (socket) => {
   });
 
   socket.on('fromClient.shuffle.word', () => {
-    service.nextTurn();
     emitWhosTurn(service);
     emitNewWord(service);
   });
@@ -114,9 +110,7 @@ io.on('connection', (socket) => {
     socket.emit('fromApi.in.room', service.hasRoom);
   });
 
-  socket.on('disconnect', () => {
-    service.removeClient();
-  });
+  socket.on('disconnect', service.removeClient);
 });
 
 server.listen(port, () => console.log(`Listening on port ${port}`));
